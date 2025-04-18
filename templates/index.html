@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Solicitudes TI</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        td.descripcion-corta {
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+    <script>
+        async function updateSolicitud(id) {
+            const row = document.getElementById(row-${id});
+            const persona = row.querySelector('select[name="persona"]').value;
+            const estado = row.querySelector('select[name="estado"]').value;
+
+            const res = await fetch(/update/${id}, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ persona, estado })
+            });
+
+            if (res.ok) {
+                const icon = document.getElementById(status-${id});
+                icon.innerHTML = '✅';
+                setTimeout(() => icon.innerHTML = '', 2000);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const ctx = document.getElementById('estadoChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Pendiente', 'En proceso', 'Resuelto'],
+                    datasets: [{
+                        label: 'Solicitudes por Estado',
+                        data: [
+                            {{ estado_stats.get('Pendiente', 0) }},
+                            {{ estado_stats.get('En proceso', 0) }},
+                            {{ estado_stats.get('Resuelto', 0) }}
+                        ],
+                        backgroundColor: ['#ffc107', '#0dcaf0', '#198754'],
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        });
+    </script>
+</head>
+<body class="container mt-4">
+    <h1 class="mb-4">Registro de Solicitudes TI</h1>
+    <form method="POST" action="/submit" class="mb-5">
+        <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input name="nombre" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Descripción del problema</label>
+            <textarea name="descripcion" class="form-control" required></textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Persona asignada</label>
+            <select name="persona" class="form-select" required>
+                <option>Alex</option>
+                <option>Harold</option>
+                <option>Sebastian</option>
+            </select>
+        </div>
+        <button class="btn btn-primary">Enviar Solicitud</button>
+    </form>
+
+    <h2>Resumen por Estado</h2>
+    <ul>
+        <li><strong>Pendiente:</strong> {{ estado_stats.get('Pendiente', 0) }}</li>
+        <li><strong>En proceso:</strong> {{ estado_stats.get('En proceso', 0) }}</li>
+        <li><strong>Resuelto:</strong> {{ estado_stats.get('Resuelto', 0) }}</li>
+    </ul>
+
+    <canvas id="estadoChart" width="400" height="200" class="mb-4"></canvas>
+
+    <h2>Solicitudes Recientes</h2>
+    <a href="/export" class="btn btn-outline-secondary mb-2">Exportar CSV</a>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Descripción</th>
+                <th>Asignado a</th>
+                <th>Estado</th>
+                <th>Fecha y Hora</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in solicitudes %}
+            <tr id="row-{{ s.id }}">
+                <td>{{ s.nombre }}</td>
+                <td class="descripcion-corta" title="{{ s.descripcion }}">{{ s.descripcion }}</td>
+                <td>
+                    <select name="persona" class="form-select form-select-sm" onchange="updateSolicitud({{ s.id }})">
+                        <option {% if s.persona_asignada == 'Alex' %}selected{% endif %}>Alex</option>
+                        <option {% if s.persona_asignada == 'Harold' %}selected{% endif %}>Harold</option>
+                        <option {% if s.persona_asignada == 'Sebastian' %}selected{% endif %}>Sebastian</option>
+                    </select>
+                </td>
+                <td>
+                    <select name="estado" class="form-select form-select-sm" onchange="updateSolicitud({{ s.id }})">
+                        <option {% if s.estado == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                        <option {% if s.estado == 'En proceso' %}selected{% endif %}>En proceso</option>
+                        <option {% if s.estado == 'Resuelto' %}selected{% endif %}>Resuelto</option>
+                    </select>
+                </td>
+                <td>{{ s.fecha_hora }}</td>
+                <td id="status-{{ s.id }}"></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
